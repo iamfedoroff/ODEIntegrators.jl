@@ -1,0 +1,8 @@
+name = "ODEIntegrators"
+uuid = "423ce0ec-55a8-4def-85ae-d330c15a5cd8"
+authors = ["iamfedoroff <iamfedoroff@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
