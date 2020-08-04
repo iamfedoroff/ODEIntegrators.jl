@@ -3,13 +3,6 @@ module ODEIntegrators
 import CUDA
 import StaticArrays
 
-# The patch to avoid extra allocations.
-# https://discourse.julialang.org/t/strange-allocations-during-broadcasting
-# https://github.com/JuliaLang/julia/pull/35260
-@inline Base.Broadcast.combine_axes(A, B) = Base.Broadcast.broadcast_shape(
-    Base.Broadcast.broadcast_axes(A), Base.Broadcast.broadcast_axes(B)
-)
-
 
 struct Problem{F, U, P}
     func :: F
