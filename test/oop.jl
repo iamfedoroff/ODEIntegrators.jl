@@ -1,4 +1,4 @@
-function func(u, p, t, args)
+function func(u, p, t)
     a, = p
     du = -a * u
     return du
@@ -10,8 +10,7 @@ function solve!(u, t, integ)
     dt = t[2] - t[1]
     u[1] = integ.prob.u0
     for i=1:Nt-1
-        args = ()
-        u[i+1] = ODEIntegrators.step(integ, u[i], t[i], dt, args)
+        u[i+1] = ODEIntegrators.step(integ, u[i], t[i], dt)
     end
     return nothing
 end

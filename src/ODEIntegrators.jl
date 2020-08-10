@@ -87,6 +87,28 @@ function step!(
 end
 
 
+# out of place
+function step(
+    integ::IntegratorRK2{F, U, P, T}, u::U, t::T, dt::T,
+) where {F, U, P, T}
+    func = integ.prob.func
+    p = integ.prob.p
+
+    a21, = integ.as
+    b1, b2 = integ.bs
+    c2, = integ.cs
+
+    k1 = func(u, p, t)
+
+    utmp = u + dt * a21 * k1
+    ttmp = t + c2 * dt
+    k2 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (b1 * k1 + b2 * k2)
+    return utmp
+end
+
+
 # out of place with args
 function step(
     integ::IntegratorRK2{F, U, P, T}, u::U, t::T, dt::T, args::Tuple,
@@ -165,6 +187,32 @@ function step!(
 
     @. u = u + dt * (b1 * k1 + b2 * k2 + b3 * k3)
     return nothing
+end
+
+
+# out of place
+function step(
+    integ::IntegratorRK3{F, U, P, T}, u::U, t::T, dt::T,
+) where {F, U, P, T}
+    func = integ.prob.func
+    p = integ.prob.p
+
+    a21, a31, a32 = integ.as
+    b1, b2, b3 = integ.bs
+    c2, c3 = integ.cs
+
+    k1 = func(u, p, t)
+
+    utmp = u + dt * a21 * k1
+    ttmp = t + c2 * dt
+    k2 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a31 * k1 + a32 * k2)
+    ttmp = t + c3 * dt
+    k3 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3)
+    return utmp
 end
 
 
@@ -254,6 +302,36 @@ function step!(
 
     @. u = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4)
     return nothing
+end
+
+
+# out of place
+function step(
+    integ::IntegratorRK4{F, U, P, T}, u::U, t::T, dt::T,
+) where {F, U, P, T}
+    func = integ.prob.func
+    p = integ.prob.p
+
+    a21, a31, a32, a41, a42, a43 = integ.as
+    b1, b2, b3, b4 = integ.bs
+    c2, c3, c4 = integ.cs
+
+    k1 = func(u, p, t)
+
+    utmp = u + dt * a21 * k1
+    ttmp = t + c2 * dt
+    k2 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a31 * k1 + a32 * k2)
+    ttmp = t + c3 * dt
+    k3 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+    ttmp = t + c4 * dt
+    k4 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4)
+    return utmp
 end
 
 
@@ -379,6 +457,45 @@ function step!(
 
     @. u = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
     return nothing
+end
+
+
+# out of place
+function step(
+    integ::IntegratorTsit5{F, U, P, T}, u::U, t::T, dt::T,
+) where {F, U, P, T}
+    func = integ.prob.func
+    p = integ.prob.p
+
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64,
+    a65 = integ.as
+    b1, b2, b3, b4, b5, b6 = integ.bs
+    c2, c3, c4, c5, c6 = integ.cs
+
+    k1 = func(u, p, t)
+
+    utmp = u + dt * a21 * k1
+    ttmp = t + c2 * dt
+    k2 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a31 * k1 + a32 * k2)
+    ttmp = t + c3 * dt
+    k3 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+    ttmp = t + c4 * dt
+    k4 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
+    ttmp = t + c5 * dt
+    k5 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5)
+    ttmp = t + c6 * dt
+    k6 = func(utmp, p, ttmp)
+
+    utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
+    return utmp
 end
 
 
@@ -550,6 +667,87 @@ function step!(
     end
 
     return nothing
+end
+
+
+# out of place
+function substep(
+    integ::IntegratorATsit5{F, U, P, T}, u::U, t::T, dt::T,
+) where {F, U, P, T}
+    func = integ.prob.func
+    p = integ.prob.p
+
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64,
+    a65 = integ.as
+    b1, b2, b3, b4, b5, b6 = integ.bs
+    c2, c3, c4, c5, c6 = integ.cs
+    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = integ.bhats
+    atol = integ.atol
+    rtol = integ.rtol
+
+    err = Inf
+    utmp = zero(u)
+
+    while err > 1
+        k1 = func(u, p, t)
+
+        utmp = u + dt * a21 * k1
+        ttmp = t + c2 * dt
+        k2 = func(utmp, p, ttmp)
+
+        utmp = u + dt * (a31 * k1 + a32 * k2)
+        ttmp = t + c3 * dt
+        k3 = func(utmp, p, ttmp)
+
+        utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+        ttmp = t + c4 * dt
+        k4 = func(utmp, p, ttmp)
+
+        utmp = u + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
+        ttmp = t + c5 * dt
+        k5 = func(utmp, p, ttmp)
+
+        utmp = u + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5)
+        ttmp = t + c6 * dt
+        k6 = func(utmp, p, ttmp)
+
+        utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 +
+                         b6 * k6)
+
+        # Error estimation:
+        uhat = u + dt * (bhat1 * k1 + bhat2 * k2 + bhat3 * k3 + bhat4 * k4 +
+                         bhat5 * k5 + bhat6 * k6)
+
+        etmp = @. atol + rtol * max(abs(u), abs(utmp))
+        etmp = @. abs(utmp - uhat) / etmp
+        err = sqrt(sum(abs2, etmp) / length(etmp))
+        if err > 1
+            if T == Float32   # FIXME Dirty hack which allows to launch T geometry on CPU with Float64
+                dt = convert(T, 0.9) * dt / CUDA.pow(err, convert(T, 1/5))
+            else
+                dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
+            end
+        end
+    end
+
+    return utmp, t + dt
+end
+
+
+# out of place
+function step(
+    integ::IntegratorATsit5{F, U, P, T}, u::U, t::T, dt::T,
+) where {F, U, P, T}
+    tend = t + dt
+
+    usub, tsub = substep(integ, u, t, dt)
+
+    while tsub < tend
+        dtsub = tend - tsub
+        usub, tsub = substep(integ, usub, tsub, dtsub)
+    end
+
+    return usub
 end
 
 
