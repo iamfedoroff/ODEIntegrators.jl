@@ -1,6 +1,6 @@
 module ODEIntegrators
 
-import StaticArrays
+using StaticArrays: SVector
 
 
 struct Problem{F, U, P}
@@ -35,19 +35,19 @@ end
 # RK2
 # ******************************************************************************
 function _tableau_rk2(T::Type)
-    as = StaticArrays.SVector{1, T}(2/3)
-    bs = StaticArrays.SVector{2, T}(1/4, 3/4)
-    cs = StaticArrays.SVector{1, T}(2/3)
+    as = SVector{1, T}(2/3)
+    bs = SVector{2, T}(1/4, 3/4)
+    cs = SVector{1, T}(2/3)
     return as, bs, cs
 end
 
 
 struct IntegratorRK2{F, U, P, T} <: Integrator
     prob :: Problem{F, U, P}
-    as :: StaticArrays.SVector{1, T}
-    bs :: StaticArrays.SVector{2, T}
-    cs :: StaticArrays.SVector{1, T}
-    ks :: StaticArrays.SVector{2, U}
+    as :: SVector{1, T}
+    bs :: SVector{2, T}
+    cs :: SVector{1, T}
+    ks :: SVector{2, U}
     utmp :: U
 end
 
@@ -56,7 +56,7 @@ function IntegratorRK2(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_rk2(T)
-    ks = StaticArrays.SVector{2, U}([zero(u0) for i in 1:2])
+    ks = SVector{2, U}([zero(u0) for i in 1:2])
     utmp = zero(u0)
     return IntegratorRK2{F, U, P, T}(prob, as, bs, cs, ks, utmp)
 end
@@ -134,19 +134,19 @@ end
 # RK3
 # ******************************************************************************
 function _tableau_rk3(T::Type)
-    as = StaticArrays.SVector{3, T}(0.5, -1, 2)   # a21, a31, a32
-    bs = StaticArrays.SVector{3, T}(1/6, 2/3, 1/6)   # b1, b2, b3
-    cs = StaticArrays.SVector{2, T}(0.5, 1)   # c2, c3
+    as = SVector{3, T}(0.5, -1, 2)   # a21, a31, a32
+    bs = SVector{3, T}(1/6, 2/3, 1/6)   # b1, b2, b3
+    cs = SVector{2, T}(0.5, 1)   # c2, c3
     return as, bs, cs
 end
 
 
 struct IntegratorRK3{F, U, P, T} <: Integrator
     prob :: Problem{F, U, P}
-    as :: StaticArrays.SVector{3, T}
-    bs :: StaticArrays.SVector{3, T}
-    cs :: StaticArrays.SVector{2, T}
-    ks :: StaticArrays.SVector{3, U}
+    as :: SVector{3, T}
+    bs :: SVector{3, T}
+    cs :: SVector{2, T}
+    ks :: SVector{3, U}
     utmp :: U
 end
 
@@ -155,7 +155,7 @@ function IntegratorRK3(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_rk3(T)
-    ks = StaticArrays.SVector{3, U}([zero(u0) for i in 1:3])
+    ks = SVector{3, U}([zero(u0) for i in 1:3])
     utmp = zero(u0)
     return IntegratorRK3{F, U, P, T}(prob, as, bs, cs, ks, utmp)
 end
@@ -245,19 +245,19 @@ end
 # RK4
 # ******************************************************************************
 function _tableau_rk4(T::Type)
-    as = StaticArrays.SVector{6, T}(0.5, 0, 0.5, 0, 0, 1)
-    bs = StaticArrays.SVector{4, T}(1/6, 1/3, 1/3, 1/6)
-    cs = StaticArrays.SVector{3, T}(0.5, 0.5, 1)
+    as = SVector{6, T}(0.5, 0, 0.5, 0, 0, 1)
+    bs = SVector{4, T}(1/6, 1/3, 1/3, 1/6)
+    cs = SVector{3, T}(0.5, 0.5, 1)
     return as, bs, cs
 end
 
 
 struct IntegratorRK4{F, U, P, T} <: Integrator
     prob :: Problem{F, U, P}
-    as :: StaticArrays.SVector{6, T}
-    bs :: StaticArrays.SVector{4, T}
-    cs :: StaticArrays.SVector{3, T}
-    ks :: StaticArrays.SVector{4, U}
+    as :: SVector{6, T}
+    bs :: SVector{4, T}
+    cs :: SVector{3, T}
+    ks :: SVector{4, U}
     utmp :: U
 end
 
@@ -266,7 +266,7 @@ function IntegratorRK4(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_rk4(T)
-    ks = StaticArrays.SVector{4, U}([zero(u0) for i in 1:4])
+    ks = SVector{4, U}([zero(u0) for i in 1:4])
     utmp = zero(u0)
     return IntegratorRK4{F, U, P, T}(prob, as, bs, cs, ks, utmp)
 end
@@ -368,7 +368,7 @@ end
 # Tsit5
 # ******************************************************************************
 function _tableau_tsit5(T::Type)
-    as = StaticArrays.SVector{15, T}(
+    as = SVector{15, T}(
         0.161,   # a21
         -0.008480655492356989,   # a31
         0.335480655492357,   # a32
@@ -385,7 +385,7 @@ function _tableau_tsit5(T::Type)
         -0.071584973281401,   # a64
         -0.028269050394068383,   # a65
     )
-    bs = StaticArrays.SVector{6, T}(
+    bs = SVector{6, T}(
         0.09646076681806523,   # b1
         0.01,   # b2
         0.4798896504144996,   # b3
@@ -393,17 +393,17 @@ function _tableau_tsit5(T::Type)
         -3.290069515436081,   # b5
         2.324710524099774,   # b6
     )
-    cs = StaticArrays.SVector{5, T}(0.161, 0.327, 0.9, 0.9800255409045097, 1)
+    cs = SVector{5, T}(0.161, 0.327, 0.9, 0.9800255409045097, 1)
     return as, bs, cs
 end
 
 
 struct IntegratorTsit5{F, U, P, T} <: Integrator
     prob :: Problem{F, U, P}
-    as :: StaticArrays.SVector{15, T}
-    bs :: StaticArrays.SVector{6, T}
-    cs :: StaticArrays.SVector{5, T}
-    ks :: StaticArrays.SVector{6, U}
+    as :: SVector{15, T}
+    bs :: SVector{6, T}
+    cs :: SVector{5, T}
+    ks :: SVector{6, U}
     utmp :: U
 end
 
@@ -412,7 +412,7 @@ function IntegratorTsit5(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_tsit5(T)
-    ks = StaticArrays.SVector{6, U}([zero(u0) for i in 1:6])
+    ks = SVector{6, U}([zero(u0) for i in 1:6])
     utmp = zero(u0)
     return IntegratorTsit5{F, U, P, T}(prob, as, bs, cs, ks, utmp)
 end
@@ -542,7 +542,7 @@ end
 # ******************************************************************************
 function _tableau_atsit5(T::Type)
     as, bs, cs = _tableau_tsit5(T)
-    bhats = StaticArrays.SVector{6, T}(
+    bhats = SVector{6, T}(
         0.00178001105222577714,   # bhat1
         0.0008164344596567469,   # bhat2
         -0.007880878010261995,   # bhat3
@@ -556,11 +556,11 @@ end
 
 struct IntegratorATsit5{F, U, P, T} <: Integrator
     prob :: Problem{F, U, P}
-    as :: StaticArrays.SVector{15, T}
-    bs :: StaticArrays.SVector{6, T}
-    cs :: StaticArrays.SVector{5, T}
-    bhats :: StaticArrays.SVector{6, T}
-    ks :: StaticArrays.SVector{6, U}
+    as :: SVector{15, T}
+    bs :: SVector{6, T}
+    cs :: SVector{5, T}
+    bhats :: SVector{6, T}
+    ks :: SVector{6, U}
     utmp :: U
     uhat :: U
     etmp :: U
@@ -573,7 +573,7 @@ function IntegratorATsit5(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs, bhats = _tableau_atsit5(T)
-    ks = StaticArrays.SVector{6, U}([zero(u0) for i in 1:6])
+    ks = SVector{6, U}([zero(u0) for i in 1:6])
     utmp = zero(u0)
     uhat = zero(u0)
     etmp = zero(u0)
