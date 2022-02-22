@@ -1,5 +1,7 @@
 module ODEIntegrators
 
+export Problem, Integrator, step, step!
+
 using StaticArrays: SVector
 
 
