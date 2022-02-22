@@ -55,7 +55,7 @@ end
 
 function IntegratorRK2(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
-    T = eltype(real(u0))
+    T = real(eltype(u0))
     as, bs, cs = _tableau_rk2(T)
     ks = StaticArrays.SVector{2, U}([zero(u0) for i in 1:2])
     utmp = zero(u0)
@@ -154,7 +154,7 @@ end
 
 function IntegratorRK3(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
-    T = eltype(real(u0))
+    T = real(eltype(u0))
     as, bs, cs = _tableau_rk3(T)
     ks = StaticArrays.SVector{3, U}([zero(u0) for i in 1:3])
     utmp = zero(u0)
@@ -265,7 +265,7 @@ end
 
 function IntegratorRK4(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
-    T = eltype(real(u0))
+    T = real(eltype(u0))
     as, bs, cs = _tableau_rk4(T)
     ks = StaticArrays.SVector{4, U}([zero(u0) for i in 1:4])
     utmp = zero(u0)
@@ -411,7 +411,7 @@ end
 
 function IntegratorTsit5(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
-    T = eltype(real(u0))
+    T = real(eltype(u0))
     as, bs, cs = _tableau_tsit5(T)
     ks = StaticArrays.SVector{6, U}([zero(u0) for i in 1:6])
     utmp = zero(u0)
@@ -572,7 +572,7 @@ end
 
 function IntegratorATsit5(prob::Problem{F, U, P}) where {F, U, P}
     u0 = prob.u0
-    T = eltype(real(u0))
+    T = real(eltype(u0))
     as, bs, cs, bhats = _tableau_atsit5(T)
     ks = StaticArrays.SVector{6, U}([zero(u0) for i in 1:6])
     utmp = zero(u0)
