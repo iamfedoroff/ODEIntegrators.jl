@@ -1,8 +1,13 @@
 module ODEIntegrators
 
-export Problem, Integrator, step, step!
+export Problem, Integrator, step, step!, RK2, RK3, RK4, Tsit5, ATsit5
 
 using StaticArrays: SVector
+
+
+abstract type Algorithm end
+
+abstract type Integrator end
 
 
 struct Problem{F, U, P}
@@ -12,30 +17,12 @@ struct Problem{F, U, P}
 end
 
 
-abstract type Integrator end
-
-
-function Integrator(prob, alg)
-    if alg == "RK2"
-        integ = IntegratorRK2(prob)
-    elseif alg == "RK3"
-        integ = IntegratorRK3(prob)
-    elseif alg == "RK4"
-        integ = IntegratorRK4(prob)
-    elseif alg == "Tsit5"
-        integ = IntegratorTsit5(prob)
-    elseif alg == "ATsit5"
-        integ = IntegratorATsit5(prob)
-    else
-        error("Wrong algorithm name.")
-    end
-    return integ
-end
-
-
 # ******************************************************************************
 # RK2
 # ******************************************************************************
+struct RK2 <: Algorithm end
+
+
 function _tableau_rk2(T::Type)
     as = SVector{1, T}(2/3)
     bs = SVector{2, T}(1/4, 3/4)
@@ -54,7 +41,7 @@ struct IntegratorRK2{F, U, P, T} <: Integrator
 end
 
 
-function IntegratorRK2(prob::Problem{F, U, P}) where {F, U, P}
+function Integrator(prob::Problem{F, U, P}, alg::RK2) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_rk2(T)
@@ -135,6 +122,9 @@ end
 # ******************************************************************************
 # RK3
 # ******************************************************************************
+struct RK3 <: Algorithm end
+
+
 function _tableau_rk3(T::Type)
     as = SVector{3, T}(0.5, -1, 2)   # a21, a31, a32
     bs = SVector{3, T}(1/6, 2/3, 1/6)   # b1, b2, b3
@@ -153,7 +143,7 @@ struct IntegratorRK3{F, U, P, T} <: Integrator
 end
 
 
-function IntegratorRK3(prob::Problem{F, U, P}) where {F, U, P}
+function Integrator(prob::Problem{F, U, P}, alg::RK3) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_rk3(T)
@@ -246,6 +236,9 @@ end
 # ******************************************************************************
 # RK4
 # ******************************************************************************
+struct RK4 <: Algorithm end
+
+
 function _tableau_rk4(T::Type)
     as = SVector{6, T}(0.5, 0, 0.5, 0, 0, 1)
     bs = SVector{4, T}(1/6, 1/3, 1/3, 1/6)
@@ -264,7 +257,7 @@ struct IntegratorRK4{F, U, P, T} <: Integrator
 end
 
 
-function IntegratorRK4(prob::Problem{F, U, P}) where {F, U, P}
+function Integrator(prob::Problem{F, U, P}, alg::RK4) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_rk4(T)
@@ -369,6 +362,9 @@ end
 # ******************************************************************************
 # Tsit5
 # ******************************************************************************
+struct Tsit5 <: Algorithm end
+
+
 function _tableau_tsit5(T::Type)
     as = SVector{15, T}(
         0.161,   # a21
@@ -410,7 +406,7 @@ struct IntegratorTsit5{F, U, P, T} <: Integrator
 end
 
 
-function IntegratorTsit5(prob::Problem{F, U, P}) where {F, U, P}
+function Integrator(prob::Problem{F, U, P}, alg::Tsit5) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs = _tableau_tsit5(T)
@@ -542,6 +538,9 @@ end
 # ******************************************************************************
 # ATsit5
 # ******************************************************************************
+struct ATsit5 <: Algorithm end
+
+
 function _tableau_atsit5(T::Type)
     as, bs, cs = _tableau_tsit5(T)
     bhats = SVector{6, T}(
@@ -571,7 +570,7 @@ struct IntegratorATsit5{F, U, P, T} <: Integrator
 end
 
 
-function IntegratorATsit5(prob::Problem{F, U, P}) where {F, U, P}
+function Integrator(prob::Problem{F, U, P}, alg::ATsit5) where {F, U, P}
     u0 = prob.u0
     T = real(eltype(u0))
     as, bs, cs, bhats = _tableau_atsit5(T)

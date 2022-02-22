@@ -1,23 +1,14 @@
-import CUDA
-import ODEIntegrators
+using CUDA
+using ODEIntegrators
 using Test
 
 
 CUDA.allowscalar(false)
 
-
-function compare(u, uth, alg)
-    if alg == "RK2"
-        res = isapprox(u, uth, rtol=1e-3)
-    elseif alg == "RK3"
-        res = isapprox(u, uth, rtol=1e-5)
-    elseif alg == "RK4"
-        res = isapprox(u, uth, rtol=1e-7)
-    else   # Tsit5 and ATsit5
-        res = isapprox(u, uth)
-    end
-    return res
-end
+compare(u, uth, alg::RK2) = isapprox(u, uth, rtol=1e-3)
+compare(u, uth, alg::RK3) = isapprox(u, uth, rtol=1e-5)
+compare(u, uth, alg::RK4) = isapprox(u, uth, rtol=1e-7)
+compare(u, uth, alg::Union{Tsit5, ATsit5}) = isapprox(u, uth)
 
 
 # ------------------------------------------------------------------------------
@@ -28,7 +19,7 @@ Nr = 10
 Nt = 100
 tmin, tmax = 0.0, 5/a
 
-algs = ["RK2", "RK3", "RK4", "Tsit5", "ATsit5"]
+algs = [RK2(), RK3(), RK4(), Tsit5(), ATsit5()]
 
 
 # ------------------------------------------------------------------------------
