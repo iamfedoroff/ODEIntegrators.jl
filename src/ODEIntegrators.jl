@@ -1,6 +1,5 @@
 module ODEIntegrators
 
-import CUDA
 import StaticArrays
 
 
@@ -722,11 +721,7 @@ function substep(
         etmp = @. abs(utmp - uhat) / etmp
         err = sqrt(sum(abs2, etmp) / length(etmp))
         if err > 1
-            if T == Float32   # FIXME Dirty hack which allows to launch T geometry on CPU with Float64
-                dt = convert(T, 0.9) * dt / CUDA.pow(err, convert(T, 1/5))
-            else
-                dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
-            end
+            dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
         end
     end
 
@@ -803,11 +798,7 @@ function substep(
         etmp = @. abs(utmp - uhat) / etmp
         err = sqrt(sum(abs2, etmp) / length(etmp))
         if err > 1
-            if T == Float32   # FIXME Dirty hack which allows to launch T geometry on CPU with Float64
-                dt = convert(T, 0.9) * dt / CUDA.pow(err, convert(T, 1/5))
-            else
-                dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
-            end
+            dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
         end
     end
 
