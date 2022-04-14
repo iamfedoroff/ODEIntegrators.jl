@@ -1,6 +1,7 @@
 module ODEIntegrators
 
-export Problem, Integrator, step, step!, RK2, RK3, RK4, Tsit5, ATsit5
+export Problem, Integrator, step, step!,
+       RK2, RK3, SSPRK3, SSP4RK3, RK4, Tsit5, ATsit5
 
 using StaticArrays: SVector
 
@@ -182,6 +183,128 @@ function step(
 
     utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3)
     return utmp
+end
+
+
+# ******************************************************************************
+# SSPRK3
+# Dale R. Durran, “Numerical Methods for Fluid Dynamics”, Springer, 2nd ed.
+# (2010), p. 56
+# https://link.springer.com/book/10.1007/978-1-4419-6412-0
+# ******************************************************************************
+struct SSPRK3 <: Algorithm end
+
+
+struct IntegratorSSPRK3{F, U, P} <: Integrator
+    prob :: Problem{F, U, P}
+    du :: U
+    gg :: U
+end
+
+
+function Integrator(prob::Problem{F, U, P}, alg::SSPRK3) where {F, U, P}
+    du, gg = zero(prob.u0), zero(prob.u0)
+    return IntegratorSSPRK3(prob, du, gg)
+end
+
+
+# in place
+function step!(integ::IntegratorSSPRK3, u, t, dt, args...)
+    func = integ.prob.func
+    p = integ.prob.p
+
+    du, gg = integ.du, integ.gg
+
+    func(du, u, p, t, args...)
+    @. gg = u + dt * du
+
+    func(du, gg, p, t + dt, args...)
+    @. gg = 3/4 * u + 1/4 * (gg + dt * du)
+
+    func(du, gg, p, t + dt/2, args...)
+    @. u = u / 3 + 2/3 * (gg + dt * du)
+    return nothing
+end
+
+
+# out of place
+function step(integ::IntegratorSSPRK3, u, t, dt, args...)
+    func = integ.prob.func
+    p = integ.prob.p
+
+    du = func(u, p, t, args...)
+    gg = u + dt * du
+
+    du = func(gg, p, t + dt, args...)
+    gg = 3/4 * u + 1/4 * (gg + dt * du)
+
+    du = func(gg, p, t + dt/2, args...)
+    return u / 3 + 2/3 * (gg + dt * du)
+end
+
+
+# ******************************************************************************
+# SSP4RK3 (four-stage SSPRK3)
+# Dale R. Durran, “Numerical Methods for Fluid Dynamics”, Springer, 2nd ed.
+# (2010), p. 56
+# https://link.springer.com/book/10.1007/978-1-4419-6412-0
+# ******************************************************************************
+struct SSP4RK3 <: Algorithm end
+
+
+struct IntegratorSSP4RK3{F, U, P} <: Integrator
+    prob :: Problem{F, U, P}
+    du :: U
+    gg :: U
+end
+
+
+function Integrator(prob::Problem{F, U, P}, alg::SSP4RK3) where {F, U, P}
+    du, gg = zero(prob.u0), zero(prob.u0)
+    return IntegratorSSP4RK3(prob, du, gg)
+end
+
+
+# in place
+function step!(integ::IntegratorSSP4RK3, u, t, dt, args...)
+    func = integ.prob.func
+    p = integ.prob.p
+
+    du, gg = integ.du, integ.gg
+
+    func(du, u, p, t, args...)
+    @. gg = u + 1/2 * dt * du
+
+    func(du, gg, p, t + 1/2 * dt, args...)
+    @. gg = gg + 1/2 * dt * du
+
+    func(du, gg, p, t + dt, args...)
+    @. gg = 2/3 * u + 1/3 * gg + 1/6 * dt * du
+
+    func(du, gg, p, t + 1/2 * dt, args...)
+    @. u = gg + 1/2 * dt * du
+    return nothing
+end
+
+
+# out of place
+function step(integ::IntegratorSSP4RK3, u, t, dt, args...)
+    func = integ.prob.func
+    p = integ.prob.p
+
+    du, gg = integ.du, integ.gg
+
+    du = func(u, p, t, args...)
+    gg = u + 1/2 * dt * du
+
+    du = func(gg, p, t + 1/2 * dt, args...)
+    gg = gg + 1/2 * dt * du
+
+    du = func(gg, p, t + dt, args...)
+    gg = 2/3 * u + 1/3 * gg + 1/6 * dt * du
+
+    du = func(gg, p, t + 1/2 * dt, args...)
+    return gg + 1/2 * dt * du
 end
 
 

@@ -7,7 +7,7 @@ CUDA.allowscalar(false)
 
 compare(u, uth, alg) = isapprox(u, uth)
 compare(u, uth, alg::RK2) = isapprox(u, uth, rtol=1e-3)
-compare(u, uth, alg::RK3) = isapprox(u, uth, rtol=1e-5)
+compare(u, uth, alg::Union{RK3,SSPRK3,SSP4RK3}) = isapprox(u, uth, rtol=1e-5)
 compare(u, uth, alg::RK4) = isapprox(u, uth, rtol=1e-7)
 
 
@@ -19,7 +19,7 @@ Nr = 10
 Nt = 100
 tmin, tmax = 0.0, 5/a
 
-algs = [RK2(), RK3(), RK4(), Tsit5(), ATsit5()]
+algs = [RK2(), RK3(), SSPRK3(), SSP4RK3(), RK4(), Tsit5(), ATsit5()]
 
 
 # ------------------------------------------------------------------------------
