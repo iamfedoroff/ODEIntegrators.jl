@@ -5,10 +5,10 @@ using Test
 
 CUDA.allowscalar(false)
 
+compare(u, uth, alg) = isapprox(u, uth)
 compare(u, uth, alg::RK2) = isapprox(u, uth, rtol=1e-3)
 compare(u, uth, alg::RK3) = isapprox(u, uth, rtol=1e-5)
 compare(u, uth, alg::RK4) = isapprox(u, uth, rtol=1e-7)
-compare(u, uth, alg::Union{Tsit5, ATsit5}) = isapprox(u, uth)
 
 
 # ------------------------------------------------------------------------------
