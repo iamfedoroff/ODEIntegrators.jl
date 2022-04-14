@@ -22,6 +22,7 @@ prob = ODEIntegrators.Problem(func, u0, p)
 u = zeros(Nt)
 for alg in algs
     integ = ODEIntegrators.Integrator(prob, alg)
-    solve!(u, t, integ)
+    @allocated solve!(u, t, integ)
+    @test (@allocated solve!(u, t, integ)) == 0
     @test compare(u, uth, alg)
 end
