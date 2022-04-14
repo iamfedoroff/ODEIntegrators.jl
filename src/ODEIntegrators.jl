@@ -24,77 +24,47 @@ end
 struct RK2 <: Algorithm end
 
 
-function _tableau_rk2(T::Type)
-    as = SVector{1, T}(2/3)
-    bs = SVector{2, T}(1/4, 3/4)
-    cs = SVector{1, T}(2/3)
-    return as, bs, cs
-end
-
-
-struct IntegratorRK2{F, U, P, T} <: Integrator
+struct IntegratorRK2{F, U, P} <: Integrator
     prob :: Problem{F, U, P}
-    as :: SVector{1, T}
-    bs :: SVector{2, T}
-    cs :: SVector{1, T}
-    ks :: SVector{2, U}
+    k1 :: U
+    k2 :: U
     utmp :: U
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::RK2) where {F, U, P}
-    u0 = prob.u0
-    T = real(eltype(u0))
-    as, bs, cs = _tableau_rk2(T)
-    ks = SVector{2, U}([zero(u0) for i in 1:2])
-    utmp = zero(u0)
-    return IntegratorRK2{F, U, P, T}(prob, as, bs, cs, ks, utmp)
+function Integrator(prob::Problem, alg::RK2)
+    k1, k2, utmp = [zero(prob.u0) for i in 1:3]
+    return IntegratorRK2(prob, k1, k2, utmp)
 end
 
 
 # in place
-function step!(
-    integ::IntegratorRK2{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, = integ.as
-    b1, b2 = integ.bs
-    c2, = integ.cs
-    k1, k2 = integ.ks
-    utmp = integ.utmp
+function step!(integ::IntegratorRK2, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; k1, k2, utmp) = integ
 
     func(k1, u, p, t, args...)
 
-    @. utmp = u + dt * a21 * k1
-    ttmp = t + c2 * dt
+    @. utmp = u + dt * 2/3 * k1
+    ttmp = t + 2/3 * dt
     func(k2, utmp, p, ttmp, args...)
 
-    @. u = u + dt * (b1 * k1 + b2 * k2)
+    @. u = u + dt * (1/4 * k1 + 3/4 * k2)
     return nothing
 end
 
 
 # out of place
-function step(
-    integ::IntegratorRK2{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, = integ.as
-    b1, b2 = integ.bs
-    c2, = integ.cs
+function step(integ::IntegratorRK2, u, t, dt, args...)
+    (; func, p) = integ.prob
 
     k1 = func(u, p, t, args...)
 
-    utmp = u + dt * a21 * k1
-    ttmp = t + c2 * dt
+    utmp = u + dt * 2/3 * k1
+    ttmp = t + 2/3 * dt
     k2 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (b1 * k1 + b2 * k2)
-    return utmp
+    return u + dt * (1/4 * k1 + 3/4 * k2)
 end
 
 
@@ -104,85 +74,56 @@ end
 struct RK3 <: Algorithm end
 
 
-function _tableau_rk3(T::Type)
-    as = SVector{3, T}(0.5, -1, 2)   # a21, a31, a32
-    bs = SVector{3, T}(1/6, 2/3, 1/6)   # b1, b2, b3
-    cs = SVector{2, T}(0.5, 1)   # c2, c3
-    return as, bs, cs
-end
-
-
-struct IntegratorRK3{F, U, P, T} <: Integrator
+struct IntegratorRK3{F, U, P} <: Integrator
     prob :: Problem{F, U, P}
-    as :: SVector{3, T}
-    bs :: SVector{3, T}
-    cs :: SVector{2, T}
-    ks :: SVector{3, U}
+    k1 :: U
+    k2:: U
+    k3 :: U
     utmp :: U
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::RK3) where {F, U, P}
-    u0 = prob.u0
-    T = real(eltype(u0))
-    as, bs, cs = _tableau_rk3(T)
-    ks = SVector{3, U}([zero(u0) for i in 1:3])
-    utmp = zero(u0)
-    return IntegratorRK3{F, U, P, T}(prob, as, bs, cs, ks, utmp)
+function Integrator(prob::Problem, alg::RK3)
+    k1, k2, k3, utmp = [zero(prob.u0) for i in 1:4]
+    return IntegratorRK3(prob, k1, k2, k3, utmp)
 end
 
 
 # in place
-function step!(
-    integ::IntegratorRK3{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32 = integ.as
-    b1, b2, b3 = integ.bs
-    c2, c3 = integ.cs
-    k1, k2, k3 = integ.ks
-    utmp = integ.utmp
+function step!(integ::IntegratorRK3, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; k1, k2, k3, utmp) = integ
 
     func(k1, u, p, t, args...)
 
-    @. utmp = u + dt * a21 * k1
-    ttmp = t + c2 * dt
+    @. utmp = u + dt * 1/2 * k1
+    ttmp = t + 1/2 * dt
     func(k2, utmp, p, ttmp, args...)
 
-    @. utmp = u + dt * (a31 * k1 + a32 * k2)
-    ttmp = t + c3 * dt
+    @. utmp = u + dt * (-k1 + 2 * k2)
+    ttmp = t + dt
     func(k3, utmp, p, ttmp, args...)
 
-    @. u = u + dt * (b1 * k1 + b2 * k2 + b3 * k3)
+    @. u = u + dt * (1/6 * k1 + 2/3 * k2 + 1/6 * k3)
     return nothing
 end
 
 
 # out of place
-function step(
-    integ::IntegratorRK3{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32 = integ.as
-    b1, b2, b3 = integ.bs
-    c2, c3 = integ.cs
+function step(integ::IntegratorRK3, u, t, dt, args...)
+    (; func, p) = integ.prob
 
     k1 = func(u, p, t, args...)
 
-    utmp = u + dt * a21 * k1
-    ttmp = t + c2 * dt
+    utmp = u + dt * 1/2 * k1
+    ttmp = t + 1/2 * dt
     k2 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a31 * k1 + a32 * k2)
-    ttmp = t + c3 * dt
+    utmp = u + dt * (-k1 + 2 * k2)
+    ttmp = t + dt
     k3 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3)
-    return utmp
+    return u + dt * (1/6 * k1 + 2/3 * k2 + 1/6 * k3)
 end
 
 
@@ -202,7 +143,7 @@ struct IntegratorSSPRK3{F, U, P} <: Integrator
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::SSPRK3) where {F, U, P}
+function Integrator(prob::Problem, alg::SSPRK3)
     du, gg = zero(prob.u0), zero(prob.u0)
     return IntegratorSSPRK3(prob, du, gg)
 end
@@ -221,8 +162,8 @@ function step!(integ::IntegratorSSPRK3, u, t, dt, args...)
     func(du, gg, p, t + dt, args...)
     @. gg = 3/4 * u + 1/4 * (gg + dt * du)
 
-    func(du, gg, p, t + dt/2, args...)
-    @. u = u / 3 + 2/3 * (gg + dt * du)
+    func(du, gg, p, t + 1/2 * dt, args...)
+    @. u = 1/3 * u + 2/3 * (gg + dt * du)
     return nothing
 end
 
@@ -238,8 +179,8 @@ function step(integ::IntegratorSSPRK3, u, t, dt, args...)
     du = func(gg, p, t + dt, args...)
     gg = 3/4 * u + 1/4 * (gg + dt * du)
 
-    du = func(gg, p, t + dt/2, args...)
-    return u / 3 + 2/3 * (gg + dt * du)
+    du = func(gg, p, t + 1/2 * dt, args...)
+    return 1/3 * u + 2/3 * (gg + dt * du)
 end
 
 
@@ -259,7 +200,7 @@ struct IntegratorSSP4RK3{F, U, P} <: Integrator
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::SSP4RK3) where {F, U, P}
+function Integrator(prob::Problem, alg::SSP4RK3)
     du, gg = zero(prob.u0), zero(prob.u0)
     return IntegratorSSP4RK3(prob, du, gg)
 end
@@ -314,93 +255,65 @@ end
 struct RK4 <: Algorithm end
 
 
-function _tableau_rk4(T::Type)
-    as = SVector{6, T}(0.5, 0, 0.5, 0, 0, 1)
-    bs = SVector{4, T}(1/6, 1/3, 1/3, 1/6)
-    cs = SVector{3, T}(0.5, 0.5, 1)
-    return as, bs, cs
-end
-
-
-struct IntegratorRK4{F, U, P, T} <: Integrator
+struct IntegratorRK4{F, U, P} <: Integrator
     prob :: Problem{F, U, P}
-    as :: SVector{6, T}
-    bs :: SVector{4, T}
-    cs :: SVector{3, T}
-    ks :: SVector{4, U}
+    k1 :: U
+    k2 :: U
+    k3 :: U
+    k4 :: U
     utmp :: U
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::RK4) where {F, U, P}
-    u0 = prob.u0
-    T = real(eltype(u0))
-    as, bs, cs = _tableau_rk4(T)
-    ks = SVector{4, U}([zero(u0) for i in 1:4])
-    utmp = zero(u0)
-    return IntegratorRK4{F, U, P, T}(prob, as, bs, cs, ks, utmp)
+function Integrator(prob::Problem, alg::RK4)
+    k1, k2, k3, k4, utmp = [zero(prob.u0) for i in 1:5]
+    return IntegratorRK4(prob, k1, k2, k3, k4, utmp)
 end
 
 
 # in place
-function step!(
-    integ::IntegratorRK4{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32, a41, a42, a43 = integ.as
-    b1, b2, b3, b4 = integ.bs
-    c2, c3, c4 = integ.cs
-    k1, k2, k3, k4 = integ.ks
-    utmp = integ.utmp
+function step!(integ::IntegratorRK4, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; k1, k2, k3, k4, utmp) = integ
 
     func(k1, u, p, t, args...)
 
-    @. utmp = u + dt * a21 * k1
-    ttmp = t + c2 * dt
+    @. utmp = u + dt * 1/2 * k1
+    ttmp = t + 1/2 * dt
     func(k2, utmp, p, ttmp, args...)
 
-    @. utmp = u + dt * (a31 * k1 + a32 * k2)
-    ttmp = t + c3 * dt
+    @. utmp = u + dt * 1/2 * k2
+    ttmp = t + 1/2 * dt
     func(k3, utmp, p, ttmp, args...)
 
-    @. utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
-    ttmp = t + c4 * dt
+    @. utmp = u + dt * k3
+    ttmp = t + dt
     func(k4, utmp, p, ttmp, args...)
 
-    @. u = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4)
+    @. u = u + dt * (1/6 * k1 + 1/3 * k2 + 1/3 * k3 + 1/6 * k4)
     return nothing
 end
 
 
 # out of place
-function step(
-    integ::IntegratorRK4{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32, a41, a42, a43 = integ.as
-    b1, b2, b3, b4 = integ.bs
-    c2, c3, c4 = integ.cs
+function step(integ::IntegratorRK4, u, t, dt, args...)
+    (; func, p) = integ.prob
 
     k1 = func(u, p, t, args...)
 
-    utmp = u + dt * a21 * k1
-    ttmp = t + c2 * dt
+    utmp = u + dt * 1/2 * k1
+    ttmp = t + 1/2 * dt
     k2 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a31 * k1 + a32 * k2)
-    ttmp = t + c3 * dt
+    utmp = u + dt * 1/2 * k2
+    ttmp = t + 1/2 * dt
     k3 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
-    ttmp = t + c4 * dt
+    utmp = u + dt * k3
+    ttmp = t + dt
     k4 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4)
-    return utmp
+    return u + dt * (1/6 * k1 + 1/3 * k2 + 1/3 * k3 + 1/6 * k4)
 end
 
 
@@ -410,7 +323,7 @@ end
 struct Tsit5 <: Algorithm end
 
 
-function _tableau_tsit5(T::Type)
+function tableau_tsit5(T::Type)
     as = SVector{15, T}(
         0.161,   # a21
         -0.008480655492356989,   # a31
@@ -446,34 +359,31 @@ struct IntegratorTsit5{F, U, P, T} <: Integrator
     as :: SVector{15, T}
     bs :: SVector{6, T}
     cs :: SVector{5, T}
-    ks :: SVector{6, U}
+    k1 :: U
+    k2 :: U
+    k3 :: U
+    k4 :: U
+    k5 :: U
+    k6 :: U
     utmp :: U
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::Tsit5) where {F, U, P}
-    u0 = prob.u0
-    T = real(eltype(u0))
-    as, bs, cs = _tableau_tsit5(T)
-    ks = SVector{6, U}([zero(u0) for i in 1:6])
-    utmp = zero(u0)
-    return IntegratorTsit5{F, U, P, T}(prob, as, bs, cs, ks, utmp)
+function Integrator(prob::Problem, alg::Tsit5)
+    T = real(eltype(prob.u0))
+    as, bs, cs = tableau_tsit5(T)
+    k1, k2, k3, k4, k5, k6, utmp = [zero(prob.u0) for i in 1:7]
+    return IntegratorTsit5(prob, as, bs, cs, k1, k2, k3, k4, k5, k6, utmp)
 end
 
 
 # in place
-function step!(
-    integ::IntegratorTsit5{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64,
-    a65 = integ.as
-    b1, b2, b3, b4, b5, b6 = integ.bs
-    c2, c3, c4, c5, c6 = integ.cs
-    k1, k2, k3, k4, k5, k6 = integ.ks
-    utmp = integ.utmp
+function step!(integ::IntegratorTsit5, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs, k1, k2, k3, k4, k5, k6, utmp) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
 
     func(k1, u, p, t, args...)
 
@@ -503,16 +413,12 @@ end
 
 
 # out of place
-function step(
-    integ::IntegratorTsit5{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64,
-    a65 = integ.as
-    b1, b2, b3, b4, b5, b6 = integ.bs
-    c2, c3, c4, c5, c6 = integ.cs
+function step(integ::IntegratorTsit5, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
 
     k1 = func(u, p, t, args...)
 
@@ -536,8 +442,7 @@ function step(
     ttmp = t + c6 * dt
     k6 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
-    return utmp
+    return u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
 end
 
 
@@ -547,8 +452,8 @@ end
 struct ATsit5 <: Algorithm end
 
 
-function _tableau_atsit5(T::Type)
-    as, bs, cs = _tableau_tsit5(T)
+function tableau_atsit5(T::Type)
+    as, bs, cs = tableau_tsit5(T)
     bhats = SVector{6, T}(
         0.00178001105222577714,   # bhat1
         0.0008164344596567469,   # bhat2
@@ -567,7 +472,12 @@ struct IntegratorATsit5{F, U, P, T} <: Integrator
     bs :: SVector{6, T}
     cs :: SVector{5, T}
     bhats :: SVector{6, T}
-    ks :: SVector{6, U}
+    k1 :: U
+    k2 :: U
+    k3 :: U
+    k4 :: U
+    k5 :: U
+    k6 :: U
     utmp :: U
     uhat :: U
     etmp :: U
@@ -576,40 +486,28 @@ struct IntegratorATsit5{F, U, P, T} <: Integrator
 end
 
 
-function Integrator(prob::Problem{F, U, P}, alg::ATsit5) where {F, U, P}
-    u0 = prob.u0
-    T = real(eltype(u0))
-    as, bs, cs, bhats = _tableau_atsit5(T)
-    ks = SVector{6, U}([zero(u0) for i in 1:6])
-    utmp = zero(u0)
-    uhat = zero(u0)
-    etmp = zero(u0)
+function Integrator(prob::Problem, alg::ATsit5)
+    T = real(eltype(prob.u0))
+    as, bs, cs, bhats = tableau_atsit5(T)
+    k1, k2, k3, k4, k5, k6, utmp, uhat, etmp = [zero(prob.u0) for i in 1:9]
     atol = convert(T, 1e-2)   # absolute tolerance
     rtol = convert(T, 1e-2)   # relative tolerance
-    return IntegratorATsit5{F, U, P, T}(
-        prob, as, bs, cs, bhats, ks, utmp, uhat, etmp, atol, rtol,
+    return IntegratorATsit5(
+        prob, as, bs, cs, bhats, k1, k2, k3, k4, k5, k6, utmp, uhat, etmp,
+        atol, rtol,
     )
 end
 
 
 # in place
-function substep!(
-    integ::IntegratorATsit5{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64,
-    a65 = integ.as
-    b1, b2, b3, b4, b5, b6 = integ.bs
-    c2, c3, c4, c5, c6 = integ.cs
-    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = integ.bhats
-    k1, k2, k3, k4, k5, k6 = integ.ks
-    utmp = integ.utmp
-    uhat = integ.uhat
-    etmp = integ.etmp
-    atol = integ.atol
-    rtol = integ.rtol
+function substep!(integ::IntegratorATsit5, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs, bhats, atol, rtol) = integ
+    (; k1, k2, k3, k4, k5, k6, utmp, uhat, etmp) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
+    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = bhats
 
     err = Inf
 
@@ -648,7 +546,7 @@ function substep!(
         @. etmp = abs(utmp - uhat) / etmp
         err = sqrt(sum(abs2, etmp) / length(etmp))
         if err > 1
-            dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
+            dt = 0.9 * dt / err^(1/5)
         end
     end
 
@@ -658,36 +556,25 @@ end
 
 
 # in place
-function step!(
-    integ::IntegratorATsit5{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
+function step!(integ::IntegratorATsit5, u, t, dt, args...)
     tend = t + dt
-
     tsub = substep!(integ, u, t, dt, args...)
-
     while tsub < tend
         dtsub = tend - tsub
         tsub = substep!(integ, u, tsub, dtsub, args...)
     end
-
     return nothing
 end
 
 
 # out of place
-function substep(
-    integ::IntegratorATsit5{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
-    func = integ.prob.func
-    p = integ.prob.p
-
-    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64,
-    a65 = integ.as
-    b1, b2, b3, b4, b5, b6 = integ.bs
-    c2, c3, c4, c5, c6 = integ.cs
-    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = integ.bhats
-    atol = integ.atol
-    rtol = integ.rtol
+function substep(integ::IntegratorATsit5, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs, bhats, atol, rtol) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
+    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = bhats
 
     err = Inf
     utmp = zero(u)
@@ -726,7 +613,7 @@ function substep(
         etmp = @. abs(utmp - uhat) / etmp
         err = sqrt(sum(abs2, etmp) / length(etmp))
         if err > 1
-            dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
+            dt = 0.9 * dt / err^(1/5)
         end
     end
 
@@ -735,18 +622,13 @@ end
 
 
 # out of place
-function step(
-    integ::IntegratorATsit5{F, U, P, T}, u::U, t::T, dt::T, args...,
-) where {F, U, P, T}
+function step(integ::IntegratorATsit5, u, t, dt, args...)
     tend = t + dt
-
     usub, tsub = substep(integ, u, t, dt, args...)
-
     while tsub < tend
         dtsub = tend - tsub
         usub, tsub = substep(integ, usub, tsub, dtsub, args...)
     end
-
     return usub
 end
 

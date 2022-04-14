@@ -37,8 +37,8 @@ end
 
 # GPU --------------------------------------------------------------------------
 if CUDA.functional()
-    u0s = CUDA.CuArray(u0s)
-    as = tuple(as...)
+    u0s = u0 * CUDA.ones(Nr)
+    as = a * CUDA.ones(Nr)
 
     p = (as, )
     prob = ODEIntegrators.Problem(func, u0s, p)
