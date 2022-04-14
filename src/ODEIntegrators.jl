@@ -646,9 +646,7 @@ function substep!(
 
         @. etmp = atol + rtol * max(abs(u), abs(utmp))
         @. etmp = abs(utmp - uhat) / etmp
-        err = sqrt(real(sum(abs2, etmp)) / length(etmp))
-        # here real(sum(...)) is needed because of
-        # https://discourse.julialang.org/t/type-inconsistency-for-sum-function-in-case-of-complex-cuarrays
+        err = sqrt(sum(abs2, etmp) / length(etmp))
         if err > 1
             dt = convert(T, 0.9) * dt / err^convert(T, 1/5)
         end
