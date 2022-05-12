@@ -20,12 +20,12 @@ function solve!(u, utmp, t, integ)
 end
 
 
-a = 2.0
+a = 2f0
 
-u0min, u0max, Nu = 5.0, 10.0, 6
-u0 = range(u0min, u0max, length=Nu)
+u0min, u0max, Nu = 5f0, 10f0, 512
+u0 = Vector(range(u0min, u0max, length=Nu))
 
-tmin, tmax, Nt = 0.0, 5/a, 100
+tmin, tmax, Nt = 0f0, 5/a, 100
 t = range(tmin, tmax, length=Nt)
 
 uth = zeros((Nu, Nt))
@@ -33,15 +33,20 @@ for iu=1:Nu
     @. uth[iu,:] = u0[iu] * exp(-a * t)
 end
 
+
 p = (a, )
-u0 = collect(u0)
+u0 = CuArray(u0)
 prob = ODEIntegrators.Problem(func!, u0, p)
 
-u = zeros((Nu, Nt))
+u = CUDA.zeros((Nu, Nt))
 utmp = similar(u, Nu)
 for alg in algs
     integ = ODEIntegrators.Integrator(prob, alg)
-    @allocated solve!(u, utmp, t, integ)
-    @test (@allocated solve!(u, utmp, t, integ)) == 0
-    @test compare(u, uth, alg)
+    if alg != ATsit5()   # ATsit5 uses sum function which allocates memory
+        CUDA.@allocated solve!(u, utmp, t, integ)
+        @test (CUDA.@allocated solve!(u, utmp, t, integ)) == 0
+    else
+        solve!(u, utmp, t, integ)
+    end
+    @test compare(collect(u), uth, alg)
 end

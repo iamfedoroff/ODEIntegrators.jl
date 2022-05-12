@@ -542,11 +542,11 @@ function substep!(integ::IntegratorATsit5, u, t, dt, args...)
         @. uhat = u + dt * (bhat1 * k1 + bhat2 * k2 + bhat3 * k3 + bhat4 * k4 +
                             bhat5 * k5 + bhat6 * k6)
 
-        @. etmp = atol + rtol * max(abs(u), abs(utmp))
-        @. etmp = abs(utmp - uhat) / etmp
+        @. etmp = abs(utmp - uhat) / (atol + rtol * max(abs(u), abs(utmp)))
         err = sqrt(sum(abs2, etmp) / length(etmp))
         if err > 1
-            dt = 0.9 * dt / err^(1/5)
+            # dt = 0.9 * dt / err^(1/5)
+            dt = convert(typeof(dt), 0.9) * dt / err^convert(typeof(dt), 0.2)
         end
     end
 
@@ -609,11 +609,10 @@ function substep(integ::IntegratorATsit5, u, t, dt, args...)
         uhat = u + dt * (bhat1 * k1 + bhat2 * k2 + bhat3 * k3 + bhat4 * k4 +
                          bhat5 * k5 + bhat6 * k6)
 
-        etmp = @. atol + rtol * max(abs(u), abs(utmp))
-        etmp = @. abs(utmp - uhat) / etmp
-        err = sqrt(sum(abs2, etmp) / length(etmp))
+        err = abs(utmp - uhat) / (atol + rtol * max(abs(u), abs(utmp)))
         if err > 1
-            dt = 0.9 * dt / err^(1/5)
+            # dt = 0.9 * dt / err^(1/5)
+            dt = convert(typeof(dt), 0.9) * dt / err^convert(typeof(dt), 0.2)
         end
     end
 
