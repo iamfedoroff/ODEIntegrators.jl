@@ -45,11 +45,11 @@ function step!(integ::IntegratorRK2, u, t, dt, args...)
 
     func(k1, u, p, t, args...)
 
-    @. utmp = u + dt * 2/3 * k1
-    ttmp = t + 2/3 * dt
+    @. utmp = u + dt * 2 * k1 / 3
+    ttmp = t + 2 * dt / 3
     func(k2, utmp, p, ttmp, args...)
 
-    @. u = u + dt * (1/4 * k1 + 3/4 * k2)
+    @. u = u + dt * (k1 / 4 + 3 * k2 / 4)
     return nothing
 end
 
@@ -60,11 +60,11 @@ function step(integ::IntegratorRK2, u, t, dt, args...)
 
     k1 = func(u, p, t, args...)
 
-    utmp = u + dt * 2/3 * k1
-    ttmp = t + 2/3 * dt
+    utmp = u + dt * 2 * k1 / 3
+    ttmp = t + 2 * dt / 3
     k2 = func(utmp, p, ttmp, args...)
 
-    return u + dt * (1/4 * k1 + 3/4 * k2)
+    return u + dt * (k1 / 4 + 3 * k2 / 4)
 end
 
 
@@ -96,15 +96,15 @@ function step!(integ::IntegratorRK3, u, t, dt, args...)
 
     func(k1, u, p, t, args...)
 
-    @. utmp = u + dt * 1/2 * k1
-    ttmp = t + 1/2 * dt
+    @. utmp = u + dt * k1 / 2
+    ttmp = t + dt / 2
     func(k2, utmp, p, ttmp, args...)
 
     @. utmp = u + dt * (-k1 + 2 * k2)
     ttmp = t + dt
     func(k3, utmp, p, ttmp, args...)
 
-    @. u = u + dt * (1/6 * k1 + 2/3 * k2 + 1/6 * k3)
+    @. u = u + dt * (k1 / 6 + 2 * k2 / 3 + k3 / 6)
     return nothing
 end
 
@@ -115,15 +115,15 @@ function step(integ::IntegratorRK3, u, t, dt, args...)
 
     k1 = func(u, p, t, args...)
 
-    utmp = u + dt * 1/2 * k1
-    ttmp = t + 1/2 * dt
+    utmp = u + dt * k1 / 2
+    ttmp = t + dt / 2
     k2 = func(utmp, p, ttmp, args...)
 
     utmp = u + dt * (-k1 + 2 * k2)
     ttmp = t + dt
     k3 = func(utmp, p, ttmp, args...)
 
-    return u + dt * (1/6 * k1 + 2/3 * k2 + 1/6 * k3)
+    return u + dt * (k1 / 6 + 2 * k2 / 3 + k3 / 6)
 end
 
 
@@ -160,10 +160,10 @@ function step!(integ::IntegratorSSPRK3, u, t, dt, args...)
     @. gg = u + dt * du
 
     func(du, gg, p, t + dt, args...)
-    @. gg = 3/4 * u + 1/4 * (gg + dt * du)
+    @. gg = 3 * u / 4 + (gg + dt * du) / 4
 
-    func(du, gg, p, t + 1/2 * dt, args...)
-    @. u = 1/3 * u + 2/3 * (gg + dt * du)
+    func(du, gg, p, t + dt / 2, args...)
+    @. u = u / 3 + 2 * (gg + dt * du) / 3
     return nothing
 end
 
@@ -177,10 +177,10 @@ function step(integ::IntegratorSSPRK3, u, t, dt, args...)
     gg = u + dt * du
 
     du = func(gg, p, t + dt, args...)
-    gg = 3/4 * u + 1/4 * (gg + dt * du)
+    gg = 3 * u / 4 + (gg + dt * du) / 4
 
-    du = func(gg, p, t + 1/2 * dt, args...)
-    return 1/3 * u + 2/3 * (gg + dt * du)
+    du = func(gg, p, t + dt / 2, args...)
+    return u / 3 + 2 * (gg + dt * du) / 3
 end
 
 
@@ -214,16 +214,16 @@ function step!(integ::IntegratorSSP4RK3, u, t, dt, args...)
     du, gg = integ.du, integ.gg
 
     func(du, u, p, t, args...)
-    @. gg = u + 1/2 * dt * du
+    @. gg = u + dt / 2 * du
 
-    func(du, gg, p, t + 1/2 * dt, args...)
-    @. gg = gg + 1/2 * dt * du
+    func(du, gg, p, t + dt / 2, args...)
+    @. gg = gg + dt / 2 * du
 
     func(du, gg, p, t + dt, args...)
-    @. gg = 2/3 * u + 1/3 * gg + 1/6 * dt * du
+    @. gg = 2 * u / 3 + gg / 3 + dt / 6 * du
 
-    func(du, gg, p, t + 1/2 * dt, args...)
-    @. u = gg + 1/2 * dt * du
+    func(du, gg, p, t + dt / 2, args...)
+    @. u = gg + dt / 2 * du
     return nothing
 end
 
@@ -236,16 +236,16 @@ function step(integ::IntegratorSSP4RK3, u, t, dt, args...)
     du, gg = integ.du, integ.gg
 
     du = func(u, p, t, args...)
-    gg = u + 1/2 * dt * du
+    gg = u + dt / 2 * du
 
-    du = func(gg, p, t + 1/2 * dt, args...)
-    gg = gg + 1/2 * dt * du
+    du = func(gg, p, t + dt / 2, args...)
+    gg = gg + dt / 2 * du
 
     du = func(gg, p, t + dt, args...)
-    gg = 2/3 * u + 1/3 * gg + 1/6 * dt * du
+    gg = 2 * u / 3 + gg / 3 + dt / 6 * du
 
-    du = func(gg, p, t + 1/2 * dt, args...)
-    return gg + 1/2 * dt * du
+    du = func(gg, p, t + dt / 2, args...)
+    return gg + dt / 2 * du
 end
 
 
@@ -278,19 +278,19 @@ function step!(integ::IntegratorRK4, u, t, dt, args...)
 
     func(k1, u, p, t, args...)
 
-    @. utmp = u + dt * 1/2 * k1
-    ttmp = t + 1/2 * dt
+    @. utmp = u + dt * k1 / 2
+    ttmp = t + dt / 2
     func(k2, utmp, p, ttmp, args...)
 
-    @. utmp = u + dt * 1/2 * k2
-    ttmp = t + 1/2 * dt
+    @. utmp = u + dt * k2 / 2
+    ttmp = t + dt / 2
     func(k3, utmp, p, ttmp, args...)
 
     @. utmp = u + dt * k3
     ttmp = t + dt
     func(k4, utmp, p, ttmp, args...)
 
-    @. u = u + dt * (1/6 * k1 + 1/3 * k2 + 1/3 * k3 + 1/6 * k4)
+    @. u = u + dt * (k1 / 6 + k2 / 3 + k3 / 3 + k4 / 6)
     return nothing
 end
 
@@ -301,19 +301,19 @@ function step(integ::IntegratorRK4, u, t, dt, args...)
 
     k1 = func(u, p, t, args...)
 
-    utmp = u + dt * 1/2 * k1
-    ttmp = t + 1/2 * dt
+    utmp = u + dt * k1 / 2
+    ttmp = t + dt / 2
     k2 = func(utmp, p, ttmp, args...)
 
-    utmp = u + dt * 1/2 * k2
-    ttmp = t + 1/2 * dt
+    utmp = u + dt * k2 / 2
+    ttmp = t + dt / 2
     k3 = func(utmp, p, ttmp, args...)
 
     utmp = u + dt * k3
     ttmp = t + dt
     k4 = func(utmp, p, ttmp, args...)
 
-    return u + dt * (1/6 * k1 + 1/3 * k2 + 1/3 * k3 + 1/6 * k4)
+    return u + dt * (k1 / 6 + k2 / 3 + k3 / 3 + k4 / 6)
 end
 
 
