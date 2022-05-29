@@ -3,6 +3,8 @@ module ODEIntegrators
 export Problem, Integrator, step, step!,
        RK2, RK3, SSPRK3, SSP4RK3, RK4, Tsit5, ATsit5
 
+import Adapt
+using CUDA: CuDeviceArray
 using StaticArrays: SVector
 
 
@@ -16,6 +18,8 @@ struct Problem{F, U, P}
     u0 :: U
     p :: P
 end
+
+Adapt.@adapt_structure Problem
 
 
 # ******************************************************************************
@@ -31,10 +35,26 @@ struct IntegratorRK2{F, U, P} <: Integrator
     utmp :: U
 end
 
+Adapt.@adapt_structure IntegratorRK2
+
 
 function Integrator(prob::Problem, alg::RK2)
     k1, k2, utmp = [zero(prob.u0) for i in 1:3]
     return IntegratorRK2(prob, k1, k2, utmp)
+end
+
+
+# out of place
+function step(integ::IntegratorRK2, u, t, dt, args...)
+    (; func, p) = integ.prob
+
+    k1 = func(u, p, t, args...)
+
+    utmp = u + dt * 2 * k1 / 3
+    ttmp = t + 2 * dt / 3
+    k2 = func(utmp, p, ttmp, args...)
+
+    return u + dt * (k1 / 4 + 3 * k2 / 4)
 end
 
 
@@ -54,17 +74,23 @@ function step!(integ::IntegratorRK2, u, t, dt, args...)
 end
 
 
-# out of place
-function step(integ::IntegratorRK2, u, t, dt, args...)
+# in place for CUDA kernels
+function step!(integ::IntegratorRK2, u::CuDeviceArray, t, dt, args...)
     (; func, p) = integ.prob
+    (; k1, k2, utmp) = integ
 
-    k1 = func(u, p, t, args...)
+    func(k1, u, p, t, args...)
 
-    utmp = u + dt * 2 * k1 / 3
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * 2 * k1[i] / 3
+    end
     ttmp = t + 2 * dt / 3
-    k2 = func(utmp, p, ttmp, args...)
+    func(k2, utmp, p, ttmp, args...)
 
-    return u + dt * (k1 / 4 + 3 * k2 / 4)
+    for i in eachindex(u)
+        u[i] = u[i] + dt * (k1[i] / 4 + 3 * k2[i] / 4)
+    end
+    return nothing
 end
 
 
@@ -82,10 +108,30 @@ struct IntegratorRK3{F, U, P} <: Integrator
     utmp :: U
 end
 
+Adapt.@adapt_structure IntegratorRK3
+
 
 function Integrator(prob::Problem, alg::RK3)
     k1, k2, k3, utmp = [zero(prob.u0) for i in 1:4]
     return IntegratorRK3(prob, k1, k2, k3, utmp)
+end
+
+
+# out of place
+function step(integ::IntegratorRK3, u, t, dt, args...)
+    (; func, p) = integ.prob
+
+    k1 = func(u, p, t, args...)
+
+    utmp = u + dt * k1 / 2
+    ttmp = t + dt / 2
+    k2 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * (-k1 + 2 * k2)
+    ttmp = t + dt
+    k3 = func(utmp, p, ttmp, args...)
+
+    return u + dt * (k1 / 6 + 2 * k2 / 3 + k3 / 6)
 end
 
 
@@ -109,22 +155,31 @@ function step!(integ::IntegratorRK3, u, t, dt, args...)
 end
 
 
-# out of place
-function step(integ::IntegratorRK3, u, t, dt, args...)
+# in place for CUDA kernels
+function step!(integ::IntegratorRK3, u::CuDeviceArray, t, dt, args...)
     (; func, p) = integ.prob
+    (; k1, k2, k3, utmp) = integ
 
-    k1 = func(u, p, t, args...)
+    func(k1, u, p, t, args...)
 
-    utmp = u + dt * k1 / 2
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * k1[i] / 2
+    end
     ttmp = t + dt / 2
-    k2 = func(utmp, p, ttmp, args...)
+    func(k2, utmp, p, ttmp, args...)
 
-    utmp = u + dt * (-k1 + 2 * k2)
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * (-k1[i] + 2 * k2[i])
+    end
     ttmp = t + dt
-    k3 = func(utmp, p, ttmp, args...)
+    func(k3, utmp, p, ttmp, args...)
 
-    return u + dt * (k1 / 6 + 2 * k2 / 3 + k3 / 6)
+    for i in eachindex(u)
+        u[i] = u[i] + dt * (k1[i] / 6 + 2 * k2[i] / 3 + k3[i] / 6)
+    end
+    return nothing
 end
+
 
 
 # ******************************************************************************
@@ -142,10 +197,28 @@ struct IntegratorSSPRK3{F, U, P} <: Integrator
     gg :: U
 end
 
+Adapt.@adapt_structure IntegratorSSPRK3
+
 
 function Integrator(prob::Problem, alg::SSPRK3)
     du, gg = zero(prob.u0), zero(prob.u0)
     return IntegratorSSPRK3(prob, du, gg)
+end
+
+
+# out of place
+function step(integ::IntegratorSSPRK3, u, t, dt, args...)
+    func = integ.prob.func
+    p = integ.prob.p
+
+    du = func(u, p, t, args...)
+    gg = u + dt * du
+
+    du = func(gg, p, t + dt, args...)
+    gg = 3 * u / 4 + (gg + dt * du) / 4
+
+    du = func(gg, p, t + dt / 2, args...)
+    return u / 3 + 2 * (gg + dt * du) / 3
 end
 
 
@@ -168,19 +241,28 @@ function step!(integ::IntegratorSSPRK3, u, t, dt, args...)
 end
 
 
-# out of place
-function step(integ::IntegratorSSPRK3, u, t, dt, args...)
+# in place for CUDA kernels
+function step!(integ::IntegratorSSPRK3, u::CuDeviceArray, t, dt, args...)
     func = integ.prob.func
     p = integ.prob.p
 
-    du = func(u, p, t, args...)
-    gg = u + dt * du
+    du, gg = integ.du, integ.gg
 
-    du = func(gg, p, t + dt, args...)
-    gg = 3 * u / 4 + (gg + dt * du) / 4
+    func(du, u, p, t, args...)
+    for i in eachindex(u)
+        gg[i] = u[i] + dt * du[i]
+    end
 
-    du = func(gg, p, t + dt / 2, args...)
-    return u / 3 + 2 * (gg + dt * du) / 3
+    func(du, gg, p, t + dt, args...)
+    for i in eachindex(u)
+        gg[i] = 3 * u[i] / 4 + (gg[i] + dt * du[i]) / 4
+    end
+
+    func(du, gg, p, t + dt / 2, args...)
+    for i in eachindex(u)
+        u[i] = u[i] / 3 + 2 * (gg[i] + dt * du[i]) / 3
+    end
+    return nothing
 end
 
 
@@ -199,10 +281,33 @@ struct IntegratorSSP4RK3{F, U, P} <: Integrator
     gg :: U
 end
 
+Adapt.@adapt_structure IntegratorSSP4RK3
+
 
 function Integrator(prob::Problem, alg::SSP4RK3)
     du, gg = zero(prob.u0), zero(prob.u0)
     return IntegratorSSP4RK3(prob, du, gg)
+end
+
+
+# out of place
+function step(integ::IntegratorSSP4RK3, u, t, dt, args...)
+    func = integ.prob.func
+    p = integ.prob.p
+
+    du, gg = integ.du, integ.gg
+
+    du = func(u, p, t, args...)
+    gg = u + dt / 2 * du
+
+    du = func(gg, p, t + dt / 2, args...)
+    gg = gg + dt / 2 * du
+
+    du = func(gg, p, t + dt, args...)
+    gg = 2 * u / 3 + gg / 3 + dt / 6 * du
+
+    du = func(gg, p, t + dt / 2, args...)
+    return gg + dt / 2 * du
 end
 
 
@@ -228,24 +333,33 @@ function step!(integ::IntegratorSSP4RK3, u, t, dt, args...)
 end
 
 
-# out of place
-function step(integ::IntegratorSSP4RK3, u, t, dt, args...)
+# in place for CUDA kernels
+function step!(integ::IntegratorSSP4RK3, u::CuDeviceArray, t, dt, args...)
     func = integ.prob.func
     p = integ.prob.p
 
     du, gg = integ.du, integ.gg
 
-    du = func(u, p, t, args...)
-    gg = u + dt / 2 * du
+    func(du, u, p, t, args...)
+    for i in eachindex(u)
+        gg[i] = u[i] + dt / 2 * du[i]
+    end
 
-    du = func(gg, p, t + dt / 2, args...)
-    gg = gg + dt / 2 * du
+    func(du, gg, p, t + dt / 2, args...)
+    for i in eachindex(u)
+        gg[i] = gg[i] + dt / 2 * du[i]
+    end
 
-    du = func(gg, p, t + dt, args...)
-    gg = 2 * u / 3 + gg / 3 + dt / 6 * du
+    func(du, gg, p, t + dt, args...)
+    for i in eachindex(u)
+        gg[i] = 2 * u[i] / 3 + gg[i] / 3 + dt / 6 * du[i]
+    end
 
-    du = func(gg, p, t + dt / 2, args...)
-    return gg + dt / 2 * du
+    func(du, gg, p, t + dt / 2, args...)
+    for i in eachindex(u)
+        u[i] = gg[i] + dt / 2 * du[i]
+    end
+    return nothing
 end
 
 
@@ -264,10 +378,34 @@ struct IntegratorRK4{F, U, P} <: Integrator
     utmp :: U
 end
 
+Adapt.@adapt_structure IntegratorRK4
+
 
 function Integrator(prob::Problem, alg::RK4)
     k1, k2, k3, k4, utmp = [zero(prob.u0) for i in 1:5]
     return IntegratorRK4(prob, k1, k2, k3, k4, utmp)
+end
+
+
+# out of place
+function step(integ::IntegratorRK4, u, t, dt, args...)
+    (; func, p) = integ.prob
+
+    k1 = func(u, p, t, args...)
+
+    utmp = u + dt * k1 / 2
+    ttmp = t + dt / 2
+    k2 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * k2 / 2
+    ttmp = t + dt / 2
+    k3 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * k3
+    ttmp = t + dt
+    k4 = func(utmp, p, ttmp, args...)
+
+    return u + dt * (k1 / 6 + k2 / 3 + k3 / 3 + k4 / 6)
 end
 
 
@@ -295,25 +433,35 @@ function step!(integ::IntegratorRK4, u, t, dt, args...)
 end
 
 
-# out of place
-function step(integ::IntegratorRK4, u, t, dt, args...)
+# in place for CUDA kernels
+function step!(integ::IntegratorRK4, u::CuDeviceArray, t, dt, args...)
     (; func, p) = integ.prob
+    (; k1, k2, k3, k4, utmp) = integ
 
-    k1 = func(u, p, t, args...)
+    func(k1, u, p, t, args...)
 
-    utmp = u + dt * k1 / 2
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * k1[i] / 2
+    end
     ttmp = t + dt / 2
-    k2 = func(utmp, p, ttmp, args...)
+    func(k2, utmp, p, ttmp, args...)
 
-    utmp = u + dt * k2 / 2
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * k2[i] / 2
+    end
     ttmp = t + dt / 2
-    k3 = func(utmp, p, ttmp, args...)
+    func(k3, utmp, p, ttmp, args...)
 
-    utmp = u + dt * k3
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * k3[i]
+    end
     ttmp = t + dt
-    k4 = func(utmp, p, ttmp, args...)
+    func(k4, utmp, p, ttmp, args...)
 
-    return u + dt * (k1 / 6 + k2 / 3 + k3 / 3 + k4 / 6)
+    for i in eachindex(u)
+        u[i] = u[i] + dt * (k1[i] / 6 + k2[i] / 3 + k3[i] / 3 + k4[i] / 6)
+    end
+    return nothing
 end
 
 
@@ -368,12 +516,48 @@ struct IntegratorTsit5{F, U, P, T} <: Integrator
     utmp :: U
 end
 
+Adapt.@adapt_structure IntegratorTsit5
+
 
 function Integrator(prob::Problem, alg::Tsit5)
     T = real(eltype(prob.u0))
     as, bs, cs = tableau_tsit5(T)
     k1, k2, k3, k4, k5, k6, utmp = [zero(prob.u0) for i in 1:7]
     return IntegratorTsit5(prob, as, bs, cs, k1, k2, k3, k4, k5, k6, utmp)
+end
+
+
+# out of place
+function step(integ::IntegratorTsit5, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
+
+    k1 = func(u, p, t, args...)
+
+    utmp = u + dt * a21 * k1
+    ttmp = t + c2 * dt
+    k2 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * (a31 * k1 + a32 * k2)
+    ttmp = t + c3 * dt
+    k3 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+    ttmp = t + c4 * dt
+    k4 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
+    ttmp = t + c5 * dt
+    k5 = func(utmp, p, ttmp, args...)
+
+    utmp = u + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5)
+    ttmp = t + c6 * dt
+    k6 = func(utmp, p, ttmp, args...)
+
+    return u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
 end
 
 
@@ -412,37 +596,53 @@ function step!(integ::IntegratorTsit5, u, t, dt, args...)
 end
 
 
-# out of place
-function step(integ::IntegratorTsit5, u, t, dt, args...)
+# in place for CUDA kernels
+function step!(integ::IntegratorTsit5, u::CuDeviceArray, t, dt, args...)
     (; func, p) = integ.prob
-    (; as, bs, cs) = integ
+    (; as, bs, cs, k1, k2, k3, k4, k5, k6, utmp) = integ
     a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
     b1, b2, b3, b4, b5, b6 = bs
     c2, c3, c4, c5, c6 = cs
 
-    k1 = func(u, p, t, args...)
+    func(k1, u, p, t, args...)
 
-    utmp = u + dt * a21 * k1
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * a21 * k1[i]
+    end
     ttmp = t + c2 * dt
-    k2 = func(utmp, p, ttmp, args...)
+    func(k2, utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a31 * k1 + a32 * k2)
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * (a31 * k1[i] + a32 * k2[i])
+    end
     ttmp = t + c3 * dt
-    k3 = func(utmp, p, ttmp, args...)
+    func(k3, utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * (a41 * k1[i] + a42 * k2[i] + a43 * k3[i])
+    end
     ttmp = t + c4 * dt
-    k4 = func(utmp, p, ttmp, args...)
+    func(k4, utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * (a51 * k1[i] + a52 * k2[i] + a53 * k3[i] +
+                               a54 * k4[i])
+    end
     ttmp = t + c5 * dt
-    k5 = func(utmp, p, ttmp, args...)
+    func(k5, utmp, p, ttmp, args...)
 
-    utmp = u + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5)
+    for i in eachindex(u)
+        utmp[i] = u[i] + dt * (a61 * k1[i] + a62 * k2[i] + a63 * k3[i] +
+                               a64 * k4[i] + a65 * k5[i])
+    end
     ttmp = t + c6 * dt
-    k6 = func(utmp, p, ttmp, args...)
+    func(k6, utmp, p, ttmp, args...)
 
-    return u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
+    for i in eachindex(u)
+        u[i] = u[i] + dt * (b1 * k1[i] + b2 * k2[i] + b3 * k3[i] + b4 * k4[i] +
+                            b5 * k5[i] + b6 * k6[i])
+    end
+    return nothing
 end
 
 
@@ -485,6 +685,8 @@ struct IntegratorATsit5{F, U, P, T} <: Integrator
     rtol :: T   # relative tolerance
 end
 
+Adapt.@adapt_structure IntegratorATsit5
+
 
 function Integrator(prob::Problem, alg::ATsit5)
     T = real(eltype(prob.u0))
@@ -496,74 +698,6 @@ function Integrator(prob::Problem, alg::ATsit5)
         prob, as, bs, cs, bhats, k1, k2, k3, k4, k5, k6, utmp, uhat, etmp,
         atol, rtol,
     )
-end
-
-
-# in place
-function substep!(integ::IntegratorATsit5, u, t, dt, args...)
-    (; func, p) = integ.prob
-    (; as, bs, cs, bhats, atol, rtol) = integ
-    (; k1, k2, k3, k4, k5, k6, utmp, uhat, etmp) = integ
-    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
-    b1, b2, b3, b4, b5, b6 = bs
-    c2, c3, c4, c5, c6 = cs
-    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = bhats
-
-    err = Inf
-
-    while err > 1
-        func(k1, u, p, t, args...)
-
-        @. utmp = u + dt * a21 * k1
-        ttmp = t + c2 * dt
-        func(k2, utmp, p, ttmp, args...)
-
-        @. utmp = u + dt * (a31 * k1 + a32 * k2)
-        ttmp = t + c3 * dt
-        func(k3, utmp, p, ttmp, args...)
-
-        @. utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
-        ttmp = t + c4 * dt
-        func(k4, utmp, p, ttmp, args...)
-
-        @. utmp = u + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
-        ttmp = t + c5 * dt
-        func(k5, utmp, p, ttmp, args...)
-
-        @. utmp = u + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 +
-                            a65 * k5)
-        ttmp = t + c6 * dt
-        func(k6, utmp, p, ttmp, args...)
-
-        @. utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 +
-                            b6 * k6)
-
-        # Error estimation:
-        @. uhat = u + dt * (bhat1 * k1 + bhat2 * k2 + bhat3 * k3 + bhat4 * k4 +
-                            bhat5 * k5 + bhat6 * k6)
-
-        @. etmp = abs(utmp - uhat) / (atol + rtol * max(abs(u), abs(utmp)))
-        err = sqrt(sum(abs2, etmp) / length(etmp))
-        if err > 1
-            # dt = 0.9 * dt / err^(1/5)
-            dt = convert(typeof(dt), 0.9) * dt / err^convert(typeof(dt), 0.2)
-        end
-    end
-
-    @. u = utmp
-    return t + dt
-end
-
-
-# in place
-function step!(integ::IntegratorATsit5, u, t, dt, args...)
-    tend = t + dt
-    tsub = substep!(integ, u, t, dt, args...)
-    while tsub < tend
-        dtsub = tend - tsub
-        tsub = substep!(integ, u, tsub, dtsub, args...)
-    end
-    return nothing
 end
 
 
@@ -629,6 +763,151 @@ function step(integ::IntegratorATsit5, u, t, dt, args...)
         usub, tsub = substep(integ, usub, tsub, dtsub, args...)
     end
     return usub
+end
+
+
+# in place
+function substep!(integ::IntegratorATsit5, u, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs, bhats, atol, rtol) = integ
+    (; k1, k2, k3, k4, k5, k6, utmp, uhat, etmp) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
+    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = bhats
+
+    err = Inf
+
+    while err > 1
+        func(k1, u, p, t, args...)
+
+        @. utmp = u + dt * a21 * k1
+        ttmp = t + c2 * dt
+        func(k2, utmp, p, ttmp, args...)
+
+        @. utmp = u + dt * (a31 * k1 + a32 * k2)
+        ttmp = t + c3 * dt
+        func(k3, utmp, p, ttmp, args...)
+
+        @. utmp = u + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+        ttmp = t + c4 * dt
+        func(k4, utmp, p, ttmp, args...)
+
+        @. utmp = u + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
+        ttmp = t + c5 * dt
+        func(k5, utmp, p, ttmp, args...)
+
+        @. utmp = u + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 +
+                            a65 * k5)
+        ttmp = t + c6 * dt
+        func(k6, utmp, p, ttmp, args...)
+
+        @. utmp = u + dt * (b1 * k1 + b2 * k2 + b3 * k3 + b4 * k4 + b5 * k5 +
+                            b6 * k6)
+
+        # Error estimation:
+        @. uhat = u + dt * (bhat1 * k1 + bhat2 * k2 + bhat3 * k3 + bhat4 * k4 +
+                            bhat5 * k5 + bhat6 * k6)
+
+        @. etmp = abs(utmp - uhat) / (atol + rtol * max(abs(u), abs(utmp)))
+        err = sqrt(sum(abs2, etmp) / length(etmp))
+        if err > 1
+            # dt = 0.9 * dt / err^(1/5)
+            dt = convert(typeof(dt), 0.9) * dt / err^convert(typeof(dt), 0.2)
+        end
+    end
+
+    @. u = utmp
+    return t + dt
+end
+
+
+# in place for CUDA kernels
+function substep!(integ::IntegratorATsit5, u::CuDeviceArray, t, dt, args...)
+    (; func, p) = integ.prob
+    (; as, bs, cs, bhats, atol, rtol) = integ
+    (; k1, k2, k3, k4, k5, k6, utmp, uhat, etmp) = integ
+    a21, a31, a32, a41, a42, a43, a51, a52, a53, a54, a61, a62, a63, a64, a65 = as
+    b1, b2, b3, b4, b5, b6 = bs
+    c2, c3, c4, c5, c6 = cs
+    bhat1, bhat2, bhat3, bhat4, bhat5, bhat6 = bhats
+
+    err = Inf
+
+    while err > 1
+        func(k1, u, p, t, args...)
+
+        for i in eachindex(u)
+            utmp[i] = u[i] + dt * a21 * k1[i]
+        end
+        ttmp = t + c2 * dt
+        func(k2, utmp, p, ttmp, args...)
+
+        for i in eachindex(u)
+            utmp[i] = u[i] + dt * (a31 * k1[i] + a32 * k2[i])
+        end
+        ttmp = t + c3 * dt
+        func(k3, utmp, p, ttmp, args...)
+
+        for i in eachindex(u)
+            utmp[i] = u[i] + dt * (a41 * k1[i] + a42 * k2[i] + a43 * k3[i])
+        end
+        ttmp = t + c4 * dt
+        func(k4, utmp, p, ttmp, args...)
+
+        for i in eachindex(u)
+            utmp[i] = u[i] + dt * (a51 * k1[i] + a52 * k2[i] + a53 * k3[i] +
+                                   a54 * k4[i])
+        end
+        ttmp = t + c5 * dt
+        func(k5, utmp, p, ttmp, args...)
+
+        for i in eachindex(u)
+            utmp[i] = u[i] + dt * (a61 * k1[i] + a62 * k2[i] + a63 * k3[i] +
+                                   a64 * k4[i] + a65 * k5[i])
+        end
+        ttmp = t + c6 * dt
+        func(k6, utmp, p, ttmp, args...)
+
+        for i in eachindex(u)
+            utmp[i] = u[i] + dt * (b1 * k1[i] + b2 * k2[i] + b3 * k3[i] +
+                                   b4 * k4[i] + b5 * k5[i] + b6 * k6[i])
+        end
+
+        # Error estimation:
+        for i in eachindex(u)
+            uhat[i] = u[i] + dt * (bhat1 * k1[i] + bhat2 * k2[i] +
+                                   bhat3 * k3[i] + bhat4 * k4[i] +
+                                   bhat5 * k5[i] + bhat6 * k6[i])
+        end
+
+        for i in eachindex(u)
+            etmp[i] = abs(utmp[i] - uhat[i]) /
+                      (atol + rtol * max(abs(u[i]), abs(utmp[i])))
+        end
+        err = sqrt(sum(abs2, etmp) / length(etmp))
+        if err > 1
+            # dt = 0.9 * dt / err^(1/5)
+            dt = convert(typeof(dt), 0.9) * dt / err^convert(typeof(dt), 0.2)
+        end
+    end
+
+    for i in eachindex(u)
+        u[i] = utmp[i]
+    end
+    return t + dt
+end
+
+
+# in place
+function step!(integ::IntegratorATsit5, u, t, dt, args...)
+    tend = t + dt
+    tsub = substep!(integ, u, t, dt, args...)
+    while tsub < tend
+        dtsub = tend - tsub
+        tsub = substep!(integ, u, tsub, dtsub, args...)
+    end
+    return nothing
 end
 
 

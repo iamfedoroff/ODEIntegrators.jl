@@ -24,7 +24,11 @@ algs = [RK2(), RK3(), SSPRK3(), SSP4RK3(), RK4(), Tsit5(), ATsit5()]
     end
 
     @testset "Ensemble of single ODEs as the system of ODEs" begin
-        include("oop_ensemble_system.jl")
+        include("oop_ensemble_as_system.jl")
+    end
+
+    @testset "System of ODEs as ensemble of single ODEs" begin
+        include("oop_system_as_ensemble.jl")
     end
 
     @testset "System of ODEs" begin
@@ -36,7 +40,7 @@ algs = [RK2(), RK3(), SSPRK3(), SSP4RK3(), RK4(), Tsit5(), ATsit5()]
     end
 
     @testset "Ensemble of systems of ODEs as the system of ODEs" begin
-        include("iip_ensemble_system.jl")
+        include("iip_ensemble_as_system.jl")
     end
 end
 
@@ -48,7 +52,11 @@ if CUDA.functional()
     end
 
     @testset "Ensemble of single ODEs as the system of ODEs" begin
-        include("oop_ensemble_system_cuda.jl")
+        include("oop_ensemble_as_system_cuda.jl")
+    end
+
+    @testset "System of ODEs as ensemble of single ODEs" begin
+        include("oop_system_as_ensemble_cuda.jl")
     end
 
     @testset "System of ODEs" begin
@@ -62,7 +70,7 @@ if CUDA.functional()
     # end
 
     @testset "Ensemble of systems of ODEs as the system of ODEs" begin
-        include("iip_ensemble_system_cuda.jl")
+        include("iip_ensemble_as_system_cuda.jl")
     end
 end
 end

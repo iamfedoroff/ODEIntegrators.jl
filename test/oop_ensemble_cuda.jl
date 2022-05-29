@@ -52,7 +52,6 @@ probs = [ODEIntegrators.Problem(func, u0, (a[ia],)) for ia=1:Na]
 u = CUDA.zeros((Na, Nt))
 for alg in algs
     integs = CuArray([ODEIntegrators.Integrator(probs[ia], alg) for ia=1:Na])
-    solve!(u, t, integs)
     CUDA.@allocated solve!(u, t, integs)
     @test (CUDA.@allocated solve!(u, t, integs)) == 0
     @test compare(collect(u), uth, alg)

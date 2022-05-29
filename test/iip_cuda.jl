@@ -33,7 +33,6 @@ for iu=1:Nu
     @. uth[iu,:] = u0[iu] * exp(-a * t)
 end
 
-
 p = (a, )
 u0 = CuArray(u0)
 prob = ODEIntegrators.Problem(func!, u0, p)
