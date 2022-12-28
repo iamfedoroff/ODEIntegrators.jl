@@ -1,11 +1,11 @@
 module ODEIntegrators
 
+import Adapt: @adapt_structure
+import CUDA: CuDeviceArray
+import StaticArrays: SVector
+
 export Problem, Integrator, step, step!,
        RK2, RK3, SSPRK3, SSP4RK3, RK4, Tsit5, ATsit5
-
-import Adapt
-using CUDA: CuDeviceArray
-using StaticArrays: SVector
 
 
 abstract type Algorithm end
@@ -19,7 +19,7 @@ struct Problem{F, U, P}
     p :: P
 end
 
-Adapt.@adapt_structure Problem
+@adapt_structure Problem
 
 
 # ******************************************************************************
@@ -35,7 +35,7 @@ struct IntegratorRK2{F, U, P} <: Integrator
     utmp :: U
 end
 
-Adapt.@adapt_structure IntegratorRK2
+@adapt_structure IntegratorRK2
 
 
 function Integrator(prob::Problem, alg::RK2)
@@ -108,7 +108,7 @@ struct IntegratorRK3{F, U, P} <: Integrator
     utmp :: U
 end
 
-Adapt.@adapt_structure IntegratorRK3
+@adapt_structure IntegratorRK3
 
 
 function Integrator(prob::Problem, alg::RK3)
@@ -197,7 +197,7 @@ struct IntegratorSSPRK3{F, U, P} <: Integrator
     gg :: U
 end
 
-Adapt.@adapt_structure IntegratorSSPRK3
+@adapt_structure IntegratorSSPRK3
 
 
 function Integrator(prob::Problem, alg::SSPRK3)
@@ -281,7 +281,7 @@ struct IntegratorSSP4RK3{F, U, P} <: Integrator
     gg :: U
 end
 
-Adapt.@adapt_structure IntegratorSSP4RK3
+@adapt_structure IntegratorSSP4RK3
 
 
 function Integrator(prob::Problem, alg::SSP4RK3)
@@ -378,7 +378,7 @@ struct IntegratorRK4{F, U, P} <: Integrator
     utmp :: U
 end
 
-Adapt.@adapt_structure IntegratorRK4
+@adapt_structure IntegratorRK4
 
 
 function Integrator(prob::Problem, alg::RK4)
@@ -516,7 +516,7 @@ struct IntegratorTsit5{F, U, P, T} <: Integrator
     utmp :: U
 end
 
-Adapt.@adapt_structure IntegratorTsit5
+@adapt_structure IntegratorTsit5
 
 
 function Integrator(prob::Problem, alg::Tsit5)
@@ -685,7 +685,7 @@ struct IntegratorATsit5{F, U, P, T} <: Integrator
     rtol :: T   # relative tolerance
 end
 
-Adapt.@adapt_structure IntegratorATsit5
+@adapt_structure IntegratorATsit5
 
 
 function Integrator(prob::Problem, alg::ATsit5)
